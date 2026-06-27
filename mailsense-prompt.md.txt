@@ -1,0 +1,2475 @@
+﻿MailSense — Prompt de Arquitetura Completa
+Prompt master para construção do projeto MailSense: plataforma de resumo e classificação inteligente de e-mails/tickets com IA.
+
+
+________________
+
+
+Contexto do Projeto
+Você é o arquiteto principal do MailSense, uma plataforma web fullstack que conecta com Gmail (ou simula uma inbox), classifica e-mails automaticamente por categoria, prioridade e sentimento usando LLM, sugere respostas, identifica urgências e apresenta tudo em um dashboard inteligente.
+
+
+O projeto será desenvolvido com a seguinte stack:
+
+
+* Backend: Python 3.12, Django 5.x, Django REST Framework, Celery, Redis, PostgreSQL, Django Channels (WebSocket)
+* Frontend: React 18 + TypeScript, Vite, TailwindCSS, Shadcn/UI, Recharts, React Query (TanStack Query)
+* IA: Anthropic Claude API (claude-sonnet-4-6)
+* Infra: Docker, Docker Compose, Nginx, GitHub Actions (CI/CD)
+* Deploy: Railway ou Fly.io
+
+
+O público-alvo é recrutadores e tech leads avaliando portfólio. O projeto precisa ser funcional, bem documentado, com modo demo (sem precisar conectar Gmail), e visualmente impressionante.
+
+
+________________
+
+
+Estratégia de Modelos — Opus vs Sonnet
+O projeto utiliza dois modelos Claude de forma estratégica. A regra geral é: Opus pensa, Sonnet executa.
+Quando usar Opus (claude-opus-4-6)
+Opus é o modelo mais capaz em raciocínio profundo, decisões arquiteturais e resolução de problemas complexos. Use nos momentos em que uma decisão errada custaria horas de retrabalho:
+
+
+Tarefa
+	Por que Opus
+	Definir arquitetura inicial do projeto
+	Decisões estruturais afetam tudo depois — models, relações, indexes, separação de apps
+	Desenhar o schema do banco de dados
+	Relações entre Email, Classification, ActionLog, threads — precisa pensar em queries futuras
+	Criar os prompts de classificação da IA
+	O prompt é o coração do produto — tom, formato JSON, edge cases, instruções de prioridade
+	Projetar o sistema de filas e tasks Celery
+	Orquestração batch vs individual, retry, dead letter, schedule — lógica não-trivial
+	Arquitetar o fluxo OAuth2 com Gmail
+	Segurança, refresh de tokens, escopos, tratamento de revogação
+	Resolver bugs complexos ou de integração
+	Quando o erro cruza camadas (frontend ↔ API ↔ Celery ↔ LLM)
+	Code review final antes de deploy
+	Visão holística de segurança, performance, edge cases
+	Escrever o README e documentação técnica
+	Narrativa, decisões técnicas, comunicação clara para recrutadores
+	Definir o design system e UX principal
+	Paleta, tipografia, hierarquia visual, experiência do dashboard
+	Quando usar Sonnet (claude-sonnet-4-6)
+Sonnet é rápido, eficiente e excelente para execução. Use para tudo que já tem direção clara definida pelo Opus:
+
+
+Tarefa
+	Por que Sonnet
+	Implementar models Django a partir do schema
+	O schema já foi decidido — é execução
+	Escrever serializers e views DRF
+	Padrão repetitivo com variações — Sonnet faz bem e rápido
+	Implementar componentes React individuais
+	EmailList, Badge, Chart — componentes isolados com spec clara
+	Escrever CSS/Tailwind e estilização
+	Aplicar o design system já definido
+	Criar os endpoints REST
+	CRUD, filtros, paginação — padrão Django REST
+	Implementar tasks Celery individuais
+	A arquitetura já existe, cada task é implementação direta
+	Escrever testes unitários e de integração
+	Testes seguem os models e endpoints já criados
+	Gerar dados de seed/demo
+	Criar fixtures e e-mails fictícios — volume com padrão
+	Configurar Docker, CI/CD, Makefile
+	Receitas conhecidas, pouca decisão nova
+	Corrigir bugs simples e ajustes pontuais
+	Erros isolados em um arquivo ou componente
+	Refatorações locais
+	Extrair função, renomear, reorganizar imports
+	Mapa visual por Agente
+Agente 1 — Infraestrutura
+
+
+  ├── Opus:   Definir estrutura de pastas, decisões de Docker (multi-stage, volumes, networks)
+
+
+  └── Sonnet: Escrever Dockerfile, docker-compose, nginx.conf, CI/CD, Makefile
+
+
+Agente 2 — Backend
+
+
+  ├── Opus:   Schema do banco, relações, indexes, decisões de API design (filtros, paginação)
+
+
+  └── Sonnet: Implementar models, serializers, views, URLs, serviço Gmail
+
+
+Agente 3 — IA/Classificação
+
+
+  ├── Opus:   Prompts de classificação, estratégia de batching, pipeline de processamento, edge cases
+
+
+  └── Sonnet: Implementar LLMService, tasks Celery, retry logic, logging
+
+
+Agente 4 — Frontend
+
+
+  ├── Opus:   Design system, UX do dashboard e inbox, hierarquia de componentes, fluxo do usuário
+
+
+  └── Sonnet: Implementar cada componente, hooks, stores, integração com API, responsividade
+
+
+Agente 5 — Dados Demo
+
+
+  ├── Opus:   Definir distribuição realista dos dados, cenários de edge case, narrativas dos e-mails
+
+
+  └── Sonnet: Gerar os 150 e-mails fictícios, fixtures, management command
+
+
+Agente 6 — Testes e Qualidade
+
+
+  ├── Opus:   Estratégia de testes, o que testar, cobertura esperada, README final
+
+
+  └── Sonnet: Escrever os testes individuais, configurar pytest, vitest
+Fluxo prático por fase
+┌─────────────────────────────────────────────────────────────────┐
+
+
+│ FASE 1 — FUNDAÇÃO                                               │
+
+
+│                                                                 │
+
+
+│  Opus ──► Decide estrutura, pastas, Docker strategy             │
+
+
+│    │                                                            │
+
+
+│    ▼                                                            │
+
+
+│  Sonnet ──► Implementa todos os arquivos de config              │
+
+
+├─────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 2 — BACKEND                                                │
+
+
+│                                                                 │
+
+
+│  Opus ──► Desenha schema completo, API design, relações         │
+
+
+│    │                                                            │
+
+
+│    ▼                                                            │
+
+
+│  Sonnet ──► Implementa models, migrations, views, serializers   │
+
+
+│  Sonnet ──► (paralelo) Gera seed de dados demo                  │
+
+
+├─────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 3 — INTELIGÊNCIA                                           │
+
+
+│                                                                 │
+
+
+│  Opus ──► Cria e refina prompts, define pipeline, edge cases    │
+
+
+│    │                                                            │
+
+
+│    ▼                                                            │
+
+
+│  Sonnet ──► Implementa serviço LLM, tasks, retry, schedule      │
+
+
+├─────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 4 — FRONTEND                                               │
+
+
+│                                                                 │
+
+
+│  Opus ──► Define design system, UX flows, component tree        │
+
+
+│    │                                                            │
+
+
+│    ▼                                                            │
+
+
+│  Sonnet ──► Implementa componentes, páginas, hooks, stores      │
+
+
+├─────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 5 — QUALIDADE                                              │
+
+
+│                                                                 │
+
+
+│  Opus ──► Define estratégia de testes, escreve README final     │
+
+
+│    │                                                            │
+
+
+│    ▼                                                            │
+
+
+│  Sonnet ──► Escreve testes, configura coverage, ajustes finais  │
+
+
+├─────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 6 — DEPLOY                                                 │
+
+
+│                                                                 │
+
+
+│  Opus ──► Revisa segurança, env vars, checklist de produção     │
+
+
+│    │                                                            │
+
+
+│    ▼                                                            │
+
+
+│  Sonnet ──► Configura Railway/Fly.io, domínio, SSL              │
+
+
+└─────────────────────────────────────────────────────────────────┘
+Regras de troca entre modelos
+1. Comece cada fase no Opus — ele pensa, planeja e decide
+2. Mude para Sonnet quando o plano estiver claro — ele executa rápido e barato
+3. Volte para Opus se encontrar um problema inesperado — bug cross-layer, decisão arquitetural não prevista, refatoração grande
+4. Use Opus para toda revisão final — antes de commitar uma fase, Opus faz code review e identifica falhas que Sonnet pode ter deixado passar
+5. Nunca use Opus para tarefas repetitivas — se você está escrevendo o quinto serializer, é trabalho de Sonnet
+6. Nunca use Sonnet para decisões que afetam múltiplos arquivos — se a mudança cascateia, Opus precisa pensar o impacto antes
+
+
+________________
+
+
+Skills — Ferramentas Especializadas por Fase
+Skills são módulos de conhecimento especializado que cada agente deve invocar no momento certo. Elas garantem que decisões não sejam tomadas "de cabeça" — cada skill tem um framework testado e um formato de output estruturado.
+Mapa de Skills por Agente e Fase
+┌─────────────────────────────────────────────────────────────────────────┐
+
+
+│ FASE 1 — FUNDAÇÃO (Agente 1)                                           │
+
+
+│                                                                         │
+
+
+│  🟣 Opus + Skills:                                                      │
+
+
+│    ├── /architecture      → ADR: Docker multi-stage vs single-stage     │
+
+
+│    ├── /architecture      → ADR: Monorepo vs repositórios separados     │
+
+
+│    ├── /system-design     → Diagrama de componentes, data flow          │
+
+
+│    └── /deploy-checklist  → Template do checklist de deploy inicial      │
+
+
+│                                                                         │
+
+
+│  🔵 Sonnet:                                                             │
+
+
+│    └── Implementa config sem skill adicional (execução direta)          │
+
+
+├─────────────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 2 — BACKEND (Agente 2 + Agente 5)                                  │
+
+
+│                                                                         │
+
+
+│  🟣 Opus + Skills:                                                      │
+
+
+│    ├── /system-design     → Data model, API contracts, storage choices  │
+
+
+│    ├── /architecture      → ADR: DRF vs Django Ninja vs FastAPI         │
+
+
+│    └── /architecture      → ADR: pgvector vs ElasticSearch (se futuro)  │
+
+
+│                                                                         │
+
+
+│  🔵 Sonnet + Skills:                                                    │
+
+
+│    └── /documentation     → Docstrings, inline docs nos endpoints       │
+
+
+├─────────────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 3 — INTELIGÊNCIA (Agente 3)                                        │
+
+
+│                                                                         │
+
+
+│  🟣 Opus + Skills:                                                      │
+
+
+│    ├── /architecture      → ADR: Batch vs individual classification     │
+
+
+│    ├── /architecture      → ADR: Claude API vs OpenAI (justificativa)   │
+
+
+│    └── /system-design     → Pipeline de processamento, retry, DLQ       │
+
+
+│                                                                         │
+
+
+│  🔵 Sonnet + Skills:                                                    │
+
+
+│    └── /documentation     → Documentar formato de prompts e responses   │
+
+
+├─────────────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 4 — FRONTEND (Agente 4)                                            │
+
+
+│                                                                         │
+
+
+│  🟣 Opus + Skills:                                                      │
+
+
+│    ├── /frontend-design   → Design system, paleta, tipografia           │
+
+
+│    ├── /system-design     → Component tree, state management strategy   │
+
+
+│    └── /architecture      → ADR: Zustand vs Redux vs Context API        │
+
+
+│                                                                         │
+
+
+│  🔵 Sonnet + Skills:                                                    │
+
+
+│    └── /frontend-design   → Aplicar design tokens nos componentes       │
+
+
+├─────────────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 5 — QUALIDADE (Agente 6)                                           │
+
+
+│                                                                         │
+
+
+│  🟣 Opus + Skills:                                                      │
+
+
+│    ├── /testing-strategy  → Pirâmide de testes, o que cobrir, targets   │
+
+
+│    ├── /code-review       → Revisão final de segurança e performance    │
+
+
+│    ├── /tech-debt         → Identificar débitos antes do v1.0           │
+
+
+│    └── /documentation     → README final, architecture docs, runbook    │
+
+
+│                                                                         │
+
+
+│  🔵 Sonnet + Skills:                                                    │
+
+
+│    └── /testing-strategy  → Escrever testes seguindo o plano do Opus    │
+
+
+├─────────────────────────────────────────────────────────────────────────┤
+
+
+│ FASE 6 — DEPLOY                                                         │
+
+
+│                                                                         │
+
+
+│  🟣 Opus + Skills:                                                      │
+
+
+│    ├── /deploy-checklist  → Checklist completo pré-deploy               │
+
+
+│    ├── /code-review       → Auditoria de segurança final (env vars,     │
+
+
+│    │                        secrets, CORS, rate limiting)                │
+
+
+│    └── /architecture      → ADR: Railway vs Fly.io vs Render            │
+
+
+│                                                                         │
+
+
+│  🔵 Sonnet:                                                             │
+
+
+│    └── Executa deploy seguindo o checklist                              │
+
+
+└─────────────────────────────────────────────────────────────────────────┘
+Detalhamento de cada Skill
+/architecture — Architecture Decision Records (ADRs)
+Quando invocar: Sempre que houver uma escolha entre tecnologias, padrões ou abordagens. Modelo: 🟣 Opus Output esperado: Documento ADR com Status, Contexto, Opções Consideradas (com prós/contras), Trade-off Analysis, Consequências e Action Items.
+
+
+ADRs planejados para o MailSense:
+
+
+#
+	Decisão
+	Opções
+	Fase
+	ADR-001
+	Estrutura do repositório
+	Monorepo vs Poly-repo
+	Fase 1
+	ADR-002
+	Framework backend
+	DRF vs Django Ninja vs FastAPI
+	Fase 2
+	ADR-003
+	Autenticação
+	JWT vs Session vs OAuth2 only
+	Fase 2
+	ADR-004
+	Classificação de e-mails
+	Batch vs Individual vs Híbrido
+	Fase 3
+	ADR-005
+	Provider de LLM
+	Claude vs OpenAI vs Multi-provider
+	Fase 3
+	ADR-006
+	State management frontend
+	Zustand vs Redux vs React Query only
+	Fase 4
+	ADR-007
+	Plataforma de deploy
+	Railway vs Fly.io vs Render
+	Fase 6
+	
+
+Como usar:
+
+
+"Invoque a skill /architecture para criar o ADR-004: devemos classificar
+
+
+e-mails em batch (múltiplos por chamada ao LLM) ou individualmente?
+
+
+Considere: custo da API, latência, complexidade do prompt, tolerância a
+
+
+falhas parciais, e volume esperado de 500 e-mails/dia."
+/system-design — Design de Sistemas
+Quando invocar: Ao projetar um novo componente, serviço ou fluxo de dados. Modelo: 🟣 Opus Output esperado: Requirements (funcionais e não-funcionais), diagrama de componentes, data flow, API contracts, storage choices, trade-offs.
+
+
+Designs planejados:
+
+
+Componente
+	O que projetar
+	Pipeline de classificação
+	Fluxo: Gmail → Sync → Fila → Classificação → Notificação
+	Sistema de filas
+	Celery tasks, prioridades, retry, dead letter queue
+	WebSocket notifications
+	Django Channels, consumers, groups, reconexão
+	OAuth2 flow
+	Fluxo completo de conexão Gmail, refresh, revogação
+	Dashboard data
+	Queries de agregação, caching strategy, refresh rate
+	
+
+Como usar:
+
+
+"Invoque a skill /system-design para projetar o pipeline de classificação
+
+
+de e-mails. Requisitos: suportar 500 e-mails/dia, latência máxima de 30s
+
+
+entre recebimento e classificação, retry em caso de falha da API,
+
+
+notificação via WebSocket para e-mails críticos."
+/frontend-design — Design de Interface
+Quando invocar: Ao definir identidade visual, design system, ou projetar uma nova página/componente. Modelo: 🟣 Opus (definição) → 🔵 Sonnet (implementação) Output esperado: Paleta de cores (4-6 hex nomeados), tipografia (display + body + mono), layout concept com wireframes ASCII, assinatura visual única.
+
+
+Aplicações no MailSense:
+
+
+Elemento
+	O que definir
+	Design system global
+	Paleta dark, tipografia Inter/JetBrains, spacing scale
+	Dashboard
+	Layout dos cards, hierarquia visual dos gráficos
+	Inbox split view
+	Proporção lista/detalhe, densidade de informação
+	Classification badges
+	Sistema de cores por categoria e prioridade
+	Empty states
+	Ilustrações e CTAs para estados vazios
+	Loading states
+	Skeleton patterns, shimmer effects
+	
+
+Como usar:
+
+
+"Invoque a skill /frontend-design para criar o design system do MailSense.
+
+
+Contexto: dashboard de classificação de e-mails com IA, público profissional
+
+
+(recrutadores vão avaliar), dark mode, precisa parecer um produto real e
+
+
+não um projeto de tutorial. Defina paleta, tipografia, layout e a assinatura
+
+
+visual que torna esse dashboard memorável."
+/testing-strategy — Estratégia de Testes
+Quando invocar: Antes de escrever qualquer teste — primeiro o plano, depois a execução. Modelo: 🟣 Opus (plano) → 🔵 Sonnet (execução) Output esperado: Pirâmide de testes para o projeto, o que testar por camada, coverage targets, exemplos de test cases.
+
+
+Plano de testes do MailSense:
+
+
+Camada
+	Tipo
+	O que cobrir
+	Target
+	Models
+	Unit
+	Validações, relações, métodos custom
+	90%
+	Services
+	Unit + Integration
+	GmailService (mock), LLMService (mock), Classifier
+	85%
+	API
+	Integration
+	Endpoints, filtros, paginação, auth
+	80%
+	Tasks
+	Unit + Integration
+	Sync, classify, digest, retry behavior
+	75%
+	Frontend components
+	Component
+	Renderização, interações, estados
+	70%
+	Frontend hooks
+	Unit
+	useEmailFilters, useWebSocket
+	80%
+	E2E
+	E2E (opcional)
+	Fluxo principal: login → inbox → classificar → responder
+	Top 3 fluxos
+	
+
+Como usar:
+
+
+"Invoque a skill /testing-strategy para definir o plano de testes do
+
+
+backend do MailSense. Foco em: classificação de e-mails (mock da API
+
+
+Claude), sync do Gmail (mock da API Google), endpoints REST com filtros
+
+
+complexos, e tasks Celery com retry."
+/code-review — Revisão de Código
+Quando invocar: Ao final de cada fase, antes de considerar "pronto". Revisão de segurança obrigatória na Fase 6. Modelo: 🟣 Opus Output esperado: Tabela de issues críticas, sugestões, pontos positivos, veredicto (Approve / Request Changes).
+
+
+Reviews planejados:
+
+
+Fase
+	Foco da revisão
+	Fase 2
+	N+1 queries, SQL injection, mass assignment nos serializers
+	Fase 3
+	Prompt injection, API key exposure, rate limiting, retry storms
+	Fase 4
+	XSS, CSRF, token storage no frontend, input sanitization
+	Fase 6
+	Auditoria completa: env vars, CORS, headers, secrets, exposed endpoints
+	
+
+Como usar:
+
+
+"Invoque a skill /code-review no serviço LLMService e nas tasks de
+
+
+classificação. Foco: segurança (prompt injection, API key handling),
+
+
+performance (batching efficiency, retry storms), e correctness (edge
+
+
+cases com e-mails malformados, timeouts, respostas inesperadas do LLM)."
+/debug — Debugging Estruturado
+Quando invocar: Quando um bug cruza camadas ou o comportamento diverge do esperado de forma não óbvia. Modelo: 🟣 Opus Output esperado: Reprodução, isolamento, diagnóstico (root cause), fix proposto, teste de prevenção.
+
+
+Cenários prováveis de debug no MailSense:
+
+
+Sintoma
+	Possível causa
+	Classificações duplicadas
+	Celery retry sem idempotência
+	WebSocket não reconecta
+	Django Channels consumer lifecycle
+	Filtros não funcionam combinados
+	django-filter com Q objects conflitantes
+	Sync do Gmail para após X e-mails
+	Rate limit da Google API, paginação incorreta
+	Resposta sugerida vem vazia
+	LLM retornando JSON malformado, parsing frágil
+	
+
+Como usar:
+
+
+"Invoque a skill /debug: o task classify_batch está gerando classificações
+
+
+duplicadas quando o Celery worker reinicia durante o processamento de um
+
+
+batch. O retry parece reprocessar e-mails que já foram classificados com
+
+
+sucesso. Stack: Celery 5.x, Redis broker, PostgreSQL."
+/deploy-checklist — Checklist de Deploy
+Quando invocar: Na Fase 6, antes de qualquer deploy para staging ou produção. Modelo: 🟣 Opus (criar checklist) → 🔵 Sonnet (executar itens) Output esperado: Checklist com Pre-Deploy, Deploy, Post-Deploy e Rollback Triggers.
+
+
+Como usar:
+
+
+"Invoque a skill /deploy-checklist para o MailSense. Stack: Django +
+
+
+Celery + Redis + PostgreSQL + React, deploy no Railway. Inclua: database
+
+
+migrations, variáveis de ambiente sensíveis (ANTHROPIC_API_KEY,
+
+
+GOOGLE_CLIENT_SECRET), CORS configuration, e health checks."
+/documentation — Documentação Técnica
+Quando invocar: Na Fase 5 e continuamente durante o projeto. Modelo: 🟣 Opus (README, architecture docs) → 🔵 Sonnet (docstrings, inline docs) Output esperado: Depende do tipo: README, API docs, runbook, architecture doc, ou onboarding guide.
+
+
+Documentos planejados para o MailSense:
+
+
+Documento
+	Tipo
+	Responsável
+	README.md
+	README
+	Opus (Fase 5)
+	docs/architecture.md
+	Architecture Doc
+	Opus (Fase 1)
+	docs/api.md
+	API Reference
+	Sonnet (auto-gerado via drf-spectacular)
+	docs/deployment.md
+	Runbook
+	Opus (Fase 6)
+	docs/contributing.md
+	Onboarding Guide
+	Sonnet (Fase 5)
+	Docstrings em todos os services
+	Inline
+	Sonnet (todas as fases)
+	
+
+Como usar:
+
+
+"Invoque a skill /documentation para criar o README.md do MailSense.
+
+
+Deve incluir: hero com screenshot, badges de CI, descrição de 3 linhas,
+
+
+features, tech stack, quick start com Docker em 3 comandos, screenshots
+
+
+de cada página, decisões técnicas, e roadmap."
+/tech-debt — Gestão de Débito Técnico
+Quando invocar: Ao final da Fase 5, antes do deploy, para identificar o que ficou pendente. Modelo: 🟣 Opus Output esperado: Lista priorizada de débitos por categoria (code, architecture, test, dependency, docs, infra), com score de Impact x Risk x Effort.
+
+
+Como usar:
+
+
+"Invoque a skill /tech-debt para auditar o MailSense antes do v1.0.
+
+
+Identifique débitos em: cobertura de testes, error handling incompleto,
+
+
+hardcoded values, missing indexes, falta de caching, e documentação
+
+
+ausente. Priorize por impacto no portfólio."
+Fluxo de Skills por Sessão de Desenvolvimento
+Início da Sessão (Opus):
+
+
+  1. Invocar /system-design ou /architecture para planejar
+
+
+  2. Documentar decisões
+
+
+  3. Definir escopo da implementação
+
+
+Desenvolvimento (Sonnet):
+
+
+  4. Implementar seguindo o plano
+
+
+  5. Invocar /documentation para docstrings inline
+
+
+  6. Se encontrar bug complexo → /debug com Opus
+
+
+Fim da Sessão (Opus):
+
+
+  7. Invocar /code-review no código produzido
+
+
+  8. Invocar /tech-debt se for final de fase
+
+
+  9. Atualizar docs com /documentation
+Skills Customizadas (criar durante o projeto)
+Além das skills built-in, o projeto pode se beneficiar de skills customizadas criadas via /skill-creator:
+
+
+Skill customizada
+	O que faz
+	Quando criar
+	/mailsense-prompt-test
+	Testa prompts de classificação contra um dataset de e-mails de referência e reporta accuracy
+	Fase 3, após definir prompts
+	/mailsense-seed-gen
+	Gera novos e-mails fictícios realistas seguindo a distribuição definida no Agente 5
+	Fase 2, quando precisar de mais dados demo
+	/mailsense-api-test
+	Roda smoke tests nos endpoints principais e reporta status
+	Fase 5, para verificação rápida
+	
+
+________________
+
+
+Sub-Agentes de Desenvolvimento
+O desenvolvimento será dividido entre sub-agentes especializados. Cada agente tem responsabilidades claras e deve seguir as diretrizes abaixo.
+
+
+________________
+
+
+Agente 1 — Arquiteto de Infraestrutura
+Responsabilidade: Setup inicial do projeto, containerização, CI/CD e configuração de ambientes.
+
+
+Tarefas:
+
+
+1. Criar docker-compose.yml com serviços: web (Django), worker (Celery), beat (Celery Beat), redis, postgres, frontend (React/Vite)
+2. Criar Dockerfile para backend (Python 3.12-slim) e frontend (Node 20-alpine)
+3. Criar .env.example com todas as variáveis necessárias:
+   * DATABASE_URL, REDIS_URL, DJANGO_SECRET_KEY, DJANGO_DEBUG
+   * ANTHROPIC_API_KEY
+   * GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+   * ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS
+4. Configurar config/settings/base.py, dev.py, prod.py com split de ambientes
+5. Configurar config/celery.py com autodiscovery de tasks
+6. Criar nginx.conf para servir frontend + proxy para API
+7. Criar .github/workflows/ci.yml:
+   * Lint (ruff + eslint)
+   * Testes (pytest + vitest)
+   * Build das imagens Docker
+   * Deploy automático para staging
+8. Criar Makefile com comandos úteis:
+   * make up, make down, make migrate, make seed, make test, make lint
+
+
+Diretrizes:
+
+
+* Usar multi-stage build nos Dockerfiles
+* Healthchecks em todos os serviços
+* Volumes nomeados para persistência do banco
+* Hot reload funcionando em dev para backend e frontend
+
+
+Estrutura esperada:
+
+
+mailsense/
+
+
+├── docker-compose.yml
+
+
+├── docker-compose.prod.yml
+
+
+├── Dockerfile.backend
+
+
+├── Dockerfile.frontend
+
+
+├── Makefile
+
+
+├── .env.example
+
+
+├── .github/
+
+
+│   └── workflows/
+
+
+│       └── ci.yml
+
+
+├── nginx/
+
+
+│   └── nginx.conf
+
+
+├── backend/
+
+
+│   ├── manage.py
+
+
+│   ├── requirements/
+
+
+│   │   ├── base.txt
+
+
+│   │   ├── dev.txt
+
+
+│   │   └── prod.txt
+
+
+│   └── config/
+
+
+│       ├── __init__.py
+
+
+│       ├── celery.py
+
+
+│       ├── urls.py
+
+
+│       ├── wsgi.py
+
+
+│       ├── asgi.py
+
+
+│       └── settings/
+
+
+│           ├── __init__.py
+
+
+│           ├── base.py
+
+
+│           ├── dev.py
+
+
+│           └── prod.py
+
+
+└── frontend/
+
+
+    ├── package.json
+
+
+    ├── vite.config.ts
+
+
+    ├── tsconfig.json
+
+
+    ├── tailwind.config.js
+
+
+    └── src/
+
+
+________________
+
+
+Agente 2 — Engenheiro de Backend
+Responsabilidade: Models, serializers, views, URLs, autenticação e integração com Gmail.
+
+
+Tarefas:
+2.1 — Models (backend/apps/)
+# apps/accounts/models.py
+
+
+class UserProfile(models.Model):
+
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+
+    gmail_access_token = models.TextField(blank=True)  # encrypted
+
+
+    gmail_refresh_token = models.TextField(blank=True)  # encrypted
+
+
+    gmail_connected_at = models.DateTimeField(null=True)
+
+
+    gmail_sync_enabled = models.BooleanField(default=False)
+
+
+    last_sync_at = models.DateTimeField(null=True)
+
+
+    timezone = models.CharField(max_length=50, default="UTC")
+
+
+# apps/emails/models.py
+
+
+class Email(models.Model):
+
+
+    class Status(models.TextChoices):
+
+
+        PENDING = "pending"
+
+
+        PROCESSING = "processing"
+
+
+        CLASSIFIED = "classified"
+
+
+        FAILED = "failed"
+
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="emails")
+
+
+    gmail_id = models.CharField(max_length=255, unique=True, db_index=True)
+
+
+    thread_id = models.CharField(max_length=255, db_index=True)
+
+
+    from_address = models.EmailField()
+
+
+    from_name = models.CharField(max_length=255, blank=True)
+
+
+    to_address = models.JSONField(default=list)
+
+
+    cc_address = models.JSONField(default=list)
+
+
+    subject = models.CharField(max_length=500)
+
+
+    body_text = models.TextField()
+
+
+    body_html = models.TextField(blank=True)
+
+
+    received_at = models.DateTimeField(db_index=True)
+
+
+    is_read = models.BooleanField(default=False)
+
+
+    has_attachments = models.BooleanField(default=False)
+
+
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+
+
+    raw_headers = models.JSONField(default=dict)
+
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+    class Meta:
+
+
+        ordering = ["-received_at"]
+
+
+        indexes = [
+
+
+            models.Index(fields=["user", "status"]),
+
+
+            models.Index(fields=["user", "received_at"]),
+
+
+        ]
+
+
+class EmailClassification(models.Model):
+
+
+    class Category(models.TextChoices):
+
+
+        SUPPORT = "support", "Suporte"
+
+
+        BILLING = "billing", "Financeiro"
+
+
+        BUG = "bug", "Bug Report"
+
+
+        FEATURE = "feature", "Feature Request"
+
+
+        SALES = "sales", "Vendas"
+
+
+        INTERNAL = "internal", "Interno"
+
+
+        NEWSLETTER = "newsletter", "Newsletter"
+
+
+        SPAM = "spam", "Spam"
+
+
+        OTHER = "other", "Outro"
+
+
+    class Priority(models.TextChoices):
+
+
+        CRITICAL = "critical"
+
+
+        HIGH = "high"
+
+
+        MEDIUM = "medium"
+
+
+        LOW = "low"
+
+
+    class Sentiment(models.TextChoices):
+
+
+        POSITIVE = "positive"
+
+
+        NEUTRAL = "neutral"
+
+
+        NEGATIVE = "negative"
+
+
+        URGENT = "urgent"
+
+
+    email = models.OneToOneField(Email, on_delete=models.CASCADE, related_name="classification")
+
+
+    category = models.CharField(max_length=20, choices=Category.choices)
+
+
+    priority = models.CharField(max_length=20, choices=Priority.choices)
+
+
+    sentiment = models.CharField(max_length=20, choices=Sentiment.choices)
+
+
+    confidence_score = models.FloatField()
+
+
+    summary = models.TextField()
+
+
+    key_topics = models.JSONField(default=list)
+
+
+    suggested_reply = models.TextField(blank=True)
+
+
+    urgency_reason = models.TextField(blank=True)
+
+
+    requires_action = models.BooleanField(default=False)
+
+
+    user_corrected = models.BooleanField(default=False)
+
+
+    original_category = models.CharField(max_length=20, blank=True)
+
+
+    processed_at = models.DateTimeField(auto_now_add=True)
+
+
+    processing_time_ms = models.IntegerField(default=0)
+
+
+class ActionLog(models.Model):
+
+
+    class ActionType(models.TextChoices):
+
+
+        REPLIED = "replied"
+
+
+        ARCHIVED = "archived"
+
+
+        ESCALATED = "escalated"
+
+
+        SNOOZED = "snoozed"
+
+
+        STARRED = "starred"
+
+
+        CORRECTED = "corrected"
+
+
+    email = models.ForeignKey(Email, on_delete=models.CASCADE, related_name="actions")
+
+
+    action = models.CharField(max_length=20, choices=ActionType.choices)
+
+
+    details = models.JSONField(default=dict)
+
+
+    performed_by = models.ForeignKey(User, on_delete=models.CASCADE)
+
+
+    performed_at = models.DateTimeField(auto_now_add=True)
+2.2 — API Endpoints
+# Auth & Gmail
+
+
+POST   /api/v1/auth/register/
+
+
+POST   /api/v1/auth/login/
+
+
+POST   /api/v1/auth/gmail/connect/       → inicia OAuth2
+
+
+GET    /api/v1/auth/gmail/callback/       → recebe token
+
+
+POST   /api/v1/auth/gmail/disconnect/
+
+
+GET    /api/v1/auth/profile/
+
+
+# Emails
+
+
+GET    /api/v1/emails/                    → lista paginada com filtros
+
+
+GET    /api/v1/emails/{id}/               → detalhe + classificação
+
+
+POST   /api/v1/emails/sync/               → dispara sync manual
+
+
+POST   /api/v1/emails/{id}/reply/         → envia resposta
+
+
+POST   /api/v1/emails/{id}/archive/
+
+
+POST   /api/v1/emails/{id}/snooze/
+
+
+PATCH  /api/v1/emails/{id}/classification/ → correção manual (feedback loop)
+
+
+POST   /api/v1/emails/bulk-action/        → ações em lote
+
+
+# Dashboard
+
+
+GET    /api/v1/dashboard/overview/        → cards resumo (total, urgentes, pendentes)
+
+
+GET    /api/v1/dashboard/by-category/     → distribuição por categoria
+
+
+GET    /api/v1/dashboard/by-priority/     → distribuição por prioridade
+
+
+GET    /api/v1/dashboard/trends/          → série temporal (7d, 30d, 90d)
+
+
+GET    /api/v1/dashboard/response-time/   → tempo médio de resposta
+
+
+GET    /api/v1/dashboard/top-senders/     → remetentes mais frequentes
+
+
+# Demo
+
+
+POST   /api/v1/demo/seed/                → popula com e-mails fictícios
+
+
+POST   /api/v1/demo/reset/               → limpa dados demo
+2.3 — Filtros suportados no GET /emails/
+?category=support,billing
+
+
+?priority=critical,high
+
+
+?sentiment=negative
+
+
+?status=classified
+
+
+?requires_action=true
+
+
+?date_from=2025-01-01&date_to=2025-06-01
+
+
+?search=termo livre
+
+
+?ordering=-received_at (ou priority, confidence_score)
+
+
+?page=1&page_size=20
+2.4 — Serviço Gmail (backend/services/gmail_service.py)
+class GmailService:
+
+
+    """Wrapper da Gmail API com retry e rate limiting."""
+
+
+    def __init__(self, user_profile):
+
+
+        self.credentials = self._build_credentials(user_profile)
+
+
+        self.service = build("gmail", "v1", credentials=self.credentials)
+
+
+    def fetch_new_messages(self, after: datetime = None, max_results: int = 50) -> list[dict]:
+
+
+        """Busca mensagens novas desde a última sincronização."""
+
+
+        ...
+
+
+    def get_message_detail(self, message_id: str) -> dict:
+
+
+        """Retorna subject, body, headers de uma mensagem."""
+
+
+        ...
+
+
+    def send_reply(self, thread_id: str, to: str, subject: str, body: str) -> dict:
+
+
+        """Envia resposta em uma thread existente."""
+
+
+        ...
+
+
+    def mark_as_read(self, message_id: str) -> None:
+
+
+        ...
+
+
+    def _build_credentials(self, profile) -> Credentials:
+
+
+        """Constrói credenciais OAuth2 com refresh automático."""
+
+
+        ...
+
+
+Diretrizes do Backend:
+
+
+* Usar django-filter para filtros nos endpoints
+* Paginação com PageNumberPagination (page_size=20)
+* Throttling: 100 req/min autenticado, 20 req/min anônimo
+* Tokens OAuth do Gmail encriptados no banco (django-fernet-fields ou similar)
+* Serializers separados para list (leve) e detail (completo)
+* Usar select_related e prefetch_related em todas as queries que envolvem classificação
+* Testes: mínimo 80% de cobertura nos endpoints e serviços
+
+
+________________
+
+
+Agente 3 — Engenheiro de IA / Classificação
+Responsabilidade: Toda lógica de classificação, prompts, batching e pipeline de processamento.
+
+
+Tarefas:
+3.1 — Serviço LLM (backend/services/llm_service.py)
+class LLMService:
+
+
+    """Wrapper da Anthropic API com retry, fallback e métricas."""
+
+
+    def __init__(self):
+
+
+        self.client = anthropic.Anthropic()
+
+
+        self.model = "claude-sonnet-4-6"
+
+
+        self.max_retries = 3
+
+
+    def classify_email(self, subject: str, body: str, context: dict = None) -> ClassificationResult:
+
+
+        """Classifica um único e-mail."""
+
+
+        ...
+
+
+    def classify_batch(self, emails: list[dict], batch_size: int = 5) -> list[ClassificationResult]:
+
+
+        """Classifica um lote de e-mails em uma única chamada (custo-eficiente)."""
+
+
+        ...
+
+
+    def generate_reply(self, email: dict, classification: dict, tone: str = "professional") -> str:
+
+
+        """Gera sugestão de resposta baseada no contexto."""
+
+
+        ...
+3.2 — Prompt de Classificação
+SYSTEM PROMPT:
+
+
+Você é um assistente de triagem de e-mails corporativo. Sua tarefa é analisar e-mails
+
+
+e retornar uma classificação estruturada em JSON.
+
+
+Regras:
+
+
+- Analise o subject e body completos
+
+
+- Considere o tom, urgência implícita e palavras-chave
+
+
+- Para prioridade CRITICAL: risco financeiro, legal, segurança, SLA estourado, cliente VIP irritado
+
+
+- Para prioridade HIGH: reclamação direta, prazo próximo, bug em produção
+
+
+- Para prioridade MEDIUM: solicitação normal, dúvida técnica, follow-up
+
+
+- Para prioridade LOW: newsletter, info geral, agradecimento, notificação automática
+
+
+- O summary deve ter no máximo 2 frases, capturando a essência
+
+
+- A suggested_reply deve ser profissional, empática e resolver o problema
+
+
+- key_topics: extraia de 2 a 5 tópicos principais como tags
+
+
+Retorne APENAS o JSON abaixo, sem markdown, sem texto adicional:
+
+
+{
+
+
+  "category": "support|billing|bug|feature|sales|internal|newsletter|spam|other",
+
+
+  "priority": "critical|high|medium|low",
+
+
+  "sentiment": "positive|neutral|negative|urgent",
+
+
+  "confidence": 0.0-1.0,
+
+
+  "summary": "Resumo em até 2 frases",
+
+
+  "key_topics": ["tópico1", "tópico2"],
+
+
+  "suggested_reply": "Texto da resposta sugerida",
+
+
+  "urgency_reason": "Motivo se priority for critical ou high, vazio caso contrário",
+
+
+  "requires_action": true|false
+
+
+}
+
+
+USER PROMPT:
+
+
+Subject: {subject}
+
+
+From: {from_name} <{from_address}>
+
+
+Date: {received_at}
+
+
+Body:
+
+
+{body_text}
+
+
+{context_adicional se houver: histórico do remetente, classificações anteriores}
+3.3 — Prompt de Batch (custo-eficiente)
+SYSTEM PROMPT:
+
+
+Você vai receber uma lista de e-mails numerados. Classifique CADA UM individualmente.
+
+
+Retorne um array JSON com a classificação de cada e-mail, na mesma ordem.
+
+
+[mesmo schema de classificação acima]
+
+
+Retorne APENAS o array JSON: [{...}, {...}, {...}]
+
+
+USER PROMPT:
+
+
+=== EMAIL 1 ===
+
+
+Subject: {subject}
+
+
+From: {from}
+
+
+Body: {body_truncado_500_chars}
+
+
+=== EMAIL 2 ===
+
+
+...
+3.4 — Tasks Celery (backend/tasks/)
+# tasks/sync.py
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+
+
+def sync_gmail_inbox(self, user_id: int):
+
+
+    """Sincroniza inbox do Gmail. Roda a cada 5 minutos via Celery Beat."""
+
+
+    ...
+
+
+# tasks/classify.py
+
+
+@shared_task(bind=True, max_retries=2)
+
+
+def classify_email_task(self, email_id: int):
+
+
+    """Classifica um e-mail individual."""
+
+
+    ...
+
+
+@shared_task
+
+
+def classify_pending_batch():
+
+
+    """Pega até 5 e-mails PENDING e classifica em batch."""
+
+
+    ...
+
+
+# tasks/digest.py
+
+
+@shared_task
+
+
+def generate_daily_digest(user_id: int):
+
+
+    """Gera resumo diário: quantos chegaram, urgentes, pendentes de ação."""
+
+
+    ...
+
+
+# tasks/notifications.py
+
+
+@shared_task
+
+
+def notify_critical_email(email_id: int):
+
+
+    """Envia notificação via WebSocket quando chega e-mail crítico."""
+
+
+    ...
+3.5 — Celery Beat Schedule
+CELERY_BEAT_SCHEDULE = {
+
+
+    "sync-gmail-every-5-min": {
+
+
+        "task": "tasks.sync.sync_gmail_inbox_all_users",
+
+
+        "schedule": crontab(minute="*/5"),
+
+
+    },
+
+
+    "classify-pending-batch": {
+
+
+        "task": "tasks.classify.classify_pending_batch",
+
+
+        "schedule": crontab(minute="*/2"),
+
+
+    },
+
+
+    "daily-digest": {
+
+
+        "task": "tasks.digest.generate_daily_digest_all",
+
+
+        "schedule": crontab(hour=8, minute=0),
+
+
+    },
+
+
+}
+
+
+Diretrizes de IA:
+
+
+* Truncar body em 2000 chars para classificação (custo)
+* Batch máximo de 5 e-mails por chamada
+* Retry com exponential backoff na API
+* Salvar processing_time_ms para métricas
+* Logging estruturado de todas as chamadas (input hash, output, tempo, custo estimado)
+* Fallback: se a API falhar 3x, marcar como FAILED e notificar
+
+
+________________
+
+
+Agente 4 — Engenheiro de Frontend
+Responsabilidade: Toda a interface React — layout, componentes, páginas, estado e integração com API.
+
+
+Tarefas:
+4.1 — Estrutura do Frontend
+frontend/src/
+
+
+├── api/
+
+
+│   ├── client.ts           # axios instance com interceptors
+
+
+│   ├── emails.ts            # hooks React Query para /emails
+
+
+│   ├── dashboard.ts         # hooks para /dashboard
+
+
+│   └── auth.ts              # hooks para /auth
+
+
+├── components/
+
+
+│   ├── layout/
+
+
+│   │   ├── Sidebar.tsx
+
+
+│   │   ├── Header.tsx
+
+
+│   │   ├── MainLayout.tsx
+
+
+│   │   └── MobileNav.tsx
+
+
+│   ├── emails/
+
+
+│   │   ├── EmailList.tsx         # lista com virtualização
+
+
+│   │   ├── EmailListItem.tsx     # card de preview
+
+
+│   │   ├── EmailDetail.tsx       # visualização completa
+
+
+│   │   ├── EmailFilters.tsx      # barra de filtros
+
+
+│   │   ├── ClassificationBadge.tsx
+
+
+│   │   ├── PriorityIndicator.tsx
+
+
+│   │   ├── SentimentChip.tsx
+
+
+│   │   ├── SuggestedReply.tsx    # card com resposta sugerida
+
+
+│   │   ├── BulkActions.tsx
+
+
+│   │   └── EmailSkeleton.tsx     # loading state
+
+
+│   ├── dashboard/
+
+
+│   │   ├── OverviewCards.tsx      # total, urgentes, pendentes, respondidos
+
+
+│   │   ├── CategoryChart.tsx      # donut chart por categoria
+
+
+│   │   ├── PriorityChart.tsx      # bar chart por prioridade
+
+
+│   │   ├── TrendsChart.tsx        # line chart temporal
+
+
+│   │   ├── TopSenders.tsx         # tabela top remetentes
+
+
+│   │   ├── ResponseTimeCard.tsx
+
+
+│   │   └── SentimentGauge.tsx
+
+
+│   └── common/
+
+
+│       ├── Badge.tsx
+
+
+│       ├── EmptyState.tsx
+
+
+│       ├── ErrorBoundary.tsx
+
+
+│       ├── LoadingSpinner.tsx
+
+
+│       └── Toast.tsx
+
+
+├── pages/
+
+
+│   ├── LoginPage.tsx
+
+
+│   ├── DashboardPage.tsx
+
+
+│   ├── InboxPage.tsx             # lista + detalhe (split view)
+
+
+│   ├── SettingsPage.tsx
+
+
+│   └── DemoPage.tsx              # landing para modo demo
+
+
+├── hooks/
+
+
+│   ├── useWebSocket.ts           # notificações real-time
+
+
+│   ├── useEmailFilters.ts        # estado dos filtros na URL
+
+
+│   └── useKeyboardShortcuts.ts   # j/k navegar, r responder, a arquivar
+
+
+├── stores/
+
+
+│   └── uiStore.ts                # zustand: sidebar, theme, selected email
+
+
+├── types/
+
+
+│   └── index.ts                  # tipos TypeScript para Email, Classification, etc
+
+
+├── utils/
+
+
+│   ├── formatters.ts             # datas, nomes, truncate
+
+
+│   └── constants.ts
+
+
+├── App.tsx
+
+
+├── main.tsx
+
+
+└── index.css                     # Tailwind + variáveis customizadas
+4.2 — Páginas Principais
+Dashboard — Primeira coisa que o recrutador vê:
+
+
+* 4 cards de overview no topo (total de e-mails, urgentes, pendentes de ação, tempo médio de resposta)
+* Gráfico de donut com distribuição por categoria (Recharts)
+* Gráfico de barras com prioridades
+* Line chart com tendência dos últimos 30 dias
+* Tabela dos top 5 remetentes
+* Tudo com skeleton loading e animação sutil de entrada
+
+
+Inbox — Split view estilo Gmail:
+
+
+* Lado esquerdo: lista de e-mails com badge de categoria, indicador de prioridade (cor), chip de sentimento, preview de 1 linha do summary
+* Lado direito: detalhe do e-mail selecionado, classificação completa, resposta sugerida com botão "Enviar" e "Editar"
+* Barra de filtros no topo: dropdowns para categoria, prioridade, sentimento + search
+* Keyboard shortcuts: j/k para navegar, r para responder, a para arquivar, e para escalate
+* Bulk actions: selecionar múltiplos → arquivar, marcar lido
+
+
+Settings:
+
+
+* Conectar/desconectar Gmail
+* Status da última sincronização
+* Preferências de notificação
+* Modo demo on/off
+4.3 — Design System
+Paleta:
+
+
+- Background: #0F1117 (dark principal)
+
+
+- Surface: #1A1D27 (cards, sidebar)
+
+
+- Surface hover: #242836
+
+
+- Border: #2E3348
+
+
+- Primary: #6366F1 (indigo, ações principais)
+
+
+- Success: #22C55E (prioridade low, sentimento positivo)
+
+
+- Warning: #F59E0B (prioridade medium)
+
+
+- Danger: #EF4444 (prioridade critical/high, sentimento negativo)
+
+
+- Info: #3B82F6
+
+
+- Text primary: #F1F5F9
+
+
+- Text secondary: #94A3B8
+
+
+- Text muted: #64748B
+
+
+Tipografia:
+
+
+- Display/Headings: Inter (weight 600, 700)
+
+
+- Body: Inter (weight 400, 500)
+
+
+- Mono/Code: JetBrains Mono
+
+
+Componentes seguem Shadcn/UI com override de cores acima.
+
+
+Border-radius: 8px padrão, 12px para cards maiores.
+
+
+Transições: 150ms ease para hovers, 300ms para modais.
+4.4 — Estados e Interações Importantes
+* Empty state: quando não há e-mails, mostrar ilustração + CTA "Conecte seu Gmail" ou "Carregar dados demo"
+* Loading: skeleton animado em todos os cards e listas
+* Error: toast no canto inferior direito com retry
+* Real-time: badge pulsante na sidebar quando chega e-mail crítico
+* Responsivo: mobile-first, sidebar vira bottom nav no mobile
+* Dark mode: padrão (o design system acima já é dark)
+
+
+Diretrizes de Frontend:
+
+
+* Usar React Query para todo fetching (cache, refetch, optimistic updates)
+* Filtros sincronizados com URL params (compartilhável)
+* Virtualização na lista de e-mails (react-virtual) se >100 itens
+* Lazy loading nas páginas com React.lazy + Suspense
+* Acessibilidade: role, aria-label, foco visível, navegação por teclado
+* Performance: manter LCP <2s, CLS <0.1
+
+
+________________
+
+
+Agente 5 — Engenheiro de Dados Demo / Seed
+Responsabilidade: Criar dados fictícios realistas para o modo demo.
+
+
+Tarefas:
+
+
+1. Criar comando Django python manage.py seed_demo que popula o banco com:
+
+
+   * 1 usuário demo (demo@mailsense.app / demo123)
+   * 150 e-mails fictícios dos últimos 30 dias
+   * Distribuição realista:
+      * 30% support, 15% billing, 10% bug, 10% feature, 10% sales, 10% internal, 10% newsletter, 5% spam
+      * 10% critical, 20% high, 40% medium, 30% low
+      * 25% negative, 50% neutral, 20% positive, 5% urgent
+   * E-mails com subjects e bodies realistas em português e inglês
+   * Threads de conversa (3-5 e-mails na mesma thread)
+   * Classificações já processadas com scores variados (0.65 — 0.99)
+   * Respostas sugeridas coerentes
+   * ActionLogs simulando atividade do último mês
+
+
+2. Criar fixture JSON como backup: backend/fixtures/demo_data.json
+
+
+3. Endpoint POST /api/v1/demo/seed/ que roda o seed (apenas em DEBUG=True)
+
+
+4. Endpoint POST /api/v1/demo/reset/ que limpa dados do usuário demo
+
+
+Exemplos de e-mails para o seed:
+
+
+[
+
+
+  {
+
+
+    "subject": "URGENTE: Sistema fora do ar há 2 horas",
+
+
+    "from": "carlos.silva@empresa.com",
+
+
+    "body": "O sistema principal está completamente inacessível desde as 14h. Já temos 3 clientes enterprise reclamando. Precisamos de uma resolução imediata...",
+
+
+    "category": "bug",
+
+
+    "priority": "critical",
+
+
+    "sentiment": "urgent"
+
+
+  },
+
+
+  {
+
+
+    "subject": "Re: Proposta comercial - Plano Enterprise",
+
+
+    "from": "ana.costa@clienteimportante.com",
+
+
+    "body": "Boa tarde, analisamos a proposta e gostaríamos de agendar uma reunião para discutir os termos. Temos interesse no plano anual...",
+
+
+    "category": "sales",
+
+
+    "priority": "high",
+
+
+    "sentiment": "positive"
+
+
+  },
+
+
+  {
+
+
+    "subject": "Newsletter semanal - Tech Digest #142",
+
+
+    "from": "noreply@techdigest.com",
+
+
+    "body": "As principais notícias da semana em tecnologia: 1. Nova versão do Python...",
+
+
+    "category": "newsletter",
+
+
+    "priority": "low",
+
+
+    "sentiment": "neutral"
+
+
+  }
+
+
+]
+
+
+________________
+
+
+Agente 6 — Engenheiro de Testes e Qualidade
+Responsabilidade: Testes unitários, integração, e2e, e documentação.
+
+
+Tarefas:
+6.1 — Testes Backend (pytest + pytest-django)
+backend/tests/
+
+
+├── conftest.py                  # fixtures globais (user, email, classification)
+
+
+├── test_models/
+
+
+│   ├── test_email.py
+
+
+│   └── test_classification.py
+
+
+├── test_api/
+
+
+│   ├── test_emails_endpoints.py  # CRUD, filtros, paginação
+
+
+│   ├── test_dashboard_endpoints.py
+
+
+│   ├── test_auth_endpoints.py
+
+
+│   └── test_demo_endpoints.py
+
+
+├── test_services/
+
+
+│   ├── test_llm_service.py       # mock da API Anthropic
+
+
+│   ├── test_gmail_service.py     # mock da Gmail API
+
+
+│   └── test_classifier.py
+
+
+├── test_tasks/
+
+
+│   ├── test_sync_task.py
+
+
+│   ├── test_classify_task.py
+
+
+│   └── test_digest_task.py
+
+
+└── factories.py                  # factory_boy para gerar dados de teste
+
+
+Cobertura mínima: 80% nos services, 70% nos endpoints.
+6.2 — Testes Frontend (Vitest + Testing Library)
+frontend/src/__tests__/
+
+
+├── components/
+
+
+│   ├── EmailList.test.tsx
+
+
+│   ├── ClassificationBadge.test.tsx
+
+
+│   └── OverviewCards.test.tsx
+
+
+├── hooks/
+
+
+│   └── useEmailFilters.test.ts
+
+
+└── pages/
+
+
+    ├── DashboardPage.test.tsx
+
+
+    └── InboxPage.test.tsx
+6.3 — Documentação
+README.md com:
+
+
+* Hero section com screenshot/GIF do dashboard
+* Badges: CI status, cobertura, license, Python version
+* Descrição do projeto em 3 linhas
+* Features list
+* Tech stack com logos
+* Quick start com Docker (3 comandos)
+* Arquitetura (diagrama simples)
+* API docs (link para Swagger/Redoc)
+* Screenshots de cada página
+* Decisões técnicas (seção "Why X over Y")
+* Roadmap (features futuras)
+* License MIT
+
+
+API Docs:
+
+
+* Configurar drf-spectacular para gerar OpenAPI schema
+* Swagger UI em /api/docs/
+* Redoc em /api/redoc/
+
+
+________________
+
+
+Ordem de Execução dos Agentes
+Fase 1 — Fundação (Agente 1)
+
+
+   🟣 Opus:   Decidir estrutura e estratégia Docker
+
+
+   🔵 Sonnet: Implementar todos os arquivos de config
+
+
+   Duração estimada: 1 sessão
+
+
+Fase 2 — Backend Core (Agente 2 + Agente 5 em paralelo)
+
+
+   🟣 Opus:   Schema do banco, API design, relações e indexes
+
+
+   🔵 Sonnet: Models, migrations, serializers, views, endpoints
+
+
+   🔵 Sonnet: (paralelo) Seed de dados demo, fixtures, management command
+
+
+   Duração estimada: 2-3 sessões
+
+
+Fase 3 — Inteligência (Agente 3)
+
+
+   🟣 Opus:   Prompts de classificação, pipeline, batching strategy, edge cases
+
+
+   🔵 Sonnet: Serviço LLM, tasks Celery, retry, logging, schedule
+
+
+   Duração estimada: 1-2 sessões
+
+
+Fase 4 — Interface (Agente 4)
+
+
+   🟣 Opus:   Design system, UX, component tree, fluxo do usuário
+
+
+   🔵 Sonnet: Componentes React, hooks, stores, integração API, responsividade
+
+
+   Duração estimada: 2-3 sessões
+
+
+Fase 5 — Qualidade (Agente 6)
+
+
+   🟣 Opus:   Estratégia de testes, README, revisão final de código
+
+
+   🔵 Sonnet: Escrever testes, configurar coverage, ajustes finais
+
+
+   Duração estimada: 1-2 sessões
+
+
+Fase 6 — Deploy
+
+
+   🟣 Opus:   Checklist de segurança, revisão de env vars e exposição
+
+
+   🔵 Sonnet: Configurar Railway/Fly.io, domínio, SSL
+
+
+   Duração estimada: 1 sessão
+
+
+________________
+
+
+Instruções para os Sub-Agentes
+Cada sub-agente deve seguir estas regras:
+
+
+1. Sempre criar arquivos completos e funcionais — nada de "# TODO implement"
+2. Seguir o padrão definido neste documento — nomes de variáveis, estrutura de pastas, convenções
+3. Incluir docstrings em todas as classes e métodos públicos
+4. Type hints em todo código Python
+5. TypeScript strict no frontend — sem any
+6. Commits semânticos: feat:, fix:, docs:, test:, chore:
+7. Tratamento de erros em todas as chamadas externas (Gmail API, Claude API, banco)
+8. Logging estruturado com structlog ou logging configurado
+9. Sem secrets hardcoded — tudo via variáveis de ambiente
+10. Código limpo — sem imports não usados, sem código comentado, sem prints soltos
+11. Invocar skills antes de decidir — toda decisão arquitetural passa por /architecture, todo design por /frontend-design, todo plano de testes por /testing-strategy. Não "pular" a skill porque "já sabe a resposta"
+12. Documentar com skills — usar /documentation para README, runbooks e architecture docs. Docstrings inline em toda classe e método público
+13. Code review obrigatório — ao final de cada fase, rodar /code-review no código produzido antes de seguir para a próxima fase
+14. Deploy checklist obrigatório — na Fase 6, rodar /deploy-checklist antes de qualquer deploy
+15. Registrar débitos — se precisar cortar corners por tempo, registrar como tech debt para revisão via /tech-debt na Fase 5
+
+
+________________
+
+
+Como Usar Este Prompt
+No Claude Code (recomendado):
+# Copie este arquivo para a raiz do projeto
+
+
+# Em cada sessão, referencie o agente específico:
+
+
+# INÍCIO DA FASE (Opus) — planejamento e decisões:
+
+
+"Atue como o Agente 2 (Backend) no modo Opus. Defina o schema
+
+
+completo do banco, relações, indexes e decisões de API design
+
+
+seguindo o prompt de arquitetura em mailsense-prompt.md"
+
+
+# EXECUÇÃO DA FASE (Sonnet) — implementação:
+
+
+"Atue como o Agente 2 (Backend) no modo Sonnet. Com base no
+
+
+schema definido na etapa anterior, implemente todos os models,
+
+
+serializers e views."
+No Claude.ai (chat):
+# Troque o modelo no seletor de modelos do chat:
+
+
+# 1. Selecione OPUS e cole:
+
+
+"Leia o prompt de arquitetura abaixo. Atue como o Agente 3
+
+
+(IA/Classificação) no modo Opus. Crie os prompts de classificação,
+
+
+defina a estratégia de batching e mapeie os edge cases."
+
+
+# 2. Copie o output do Opus
+
+
+# 3. Troque para SONNET e cole:
+
+
+"Com base nas decisões do Opus abaixo, implemente o LLMService
+
+
+completo, as tasks Celery e o retry logic."
+
+
+[cola o output do Opus aqui]
+Fluxo de troca de modelo durante o desenvolvimento:
+1. Abra sessão com Opus → planeje a fase atual
+
+
+2. Copie as decisões/plano do Opus
+
+
+3. Troque para Sonnet → implemente passando o plano como contexto
+
+
+4. Se encontrar bug complexo → volte para Opus com o erro
+
+
+5. Opus resolve → Sonnet aplica o fix
+
+
+6. Fim da fase → Opus faz code review final
+Iterando com correções:
+# Bug simples (Sonnet):
+
+
+"O endpoint /api/v1/emails/ não está filtrando por prioridade.
+
+
+Corrija o filtro no EmailFilter."
+
+
+# Bug complexo (Opus):
+
+
+"O Celery task classify_batch está duplicando classificações
+
+
+quando o worker reinicia. O retry está reenfileirando tasks que
+
+
+já processaram parcialmente. Analise o pipeline e proponha
+
+
+uma solução com idempotência."

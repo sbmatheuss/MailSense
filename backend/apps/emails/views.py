@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db.models import Count, Avg
+from django.db.models import Count, Avg, Q
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from datetime import timedelta
@@ -17,6 +17,13 @@ from .filters import EmailFilter
 
 
 class EmailListView(generics.ListAPIView):
+    """GET /api/v1/emails/ — lista paginada de e-mails do usuário autenticado.
+
+    Suporta filtragem via EmailFilter, busca textual em subject/from e ordenação
+    por received_at, priority e confidence_score. Usa o serializer resumido para
+    manter payloads pequenos (sem body e sem key_topics).
+    """
+
     serializer_class = EmailListSerializer
     permission_classes = [IsAuthenticated]
     filterset_class = EmailFilter
@@ -32,6 +39,12 @@ class EmailListView(generics.ListAPIView):
 
 
 class EmailDetailView(generics.RetrieveAPIView):
+    """GET /api/v1/emails/:id/ — detalhe completo de um e-mail.
+
+    Retorna body_text, body_html, classificação completa e últimas 10 ações.
+    Usa prefetch_related para actions para evitar N+1.
+    """
+
     serializer_class = EmailDetailSerializer
     permission_classes = [IsAuthenticated]
 
@@ -44,6 +57,12 @@ class EmailDetailView(generics.RetrieveAPIView):
 
 
 class EmailSyncView(APIView):
+    """POST /api/v1/emails/sync/ — dispara sincronização Gmail em background.
+
+    Enfileira a task Celery `sync_gmail_inbox` para o usuário autenticado.
+    Retorna imediatamente — o frontend deve usar WebSocket para progresso.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -53,6 +72,12 @@ class EmailSyncView(APIView):
 
 
 class EmailReplyView(APIView):
+    """POST /api/v1/emails/:id/reply/ — registra resposta e cria ActionLog.
+
+    No modo demo não envia e-mail de verdade — apenas persiste o log.
+    A integração Gmail real será implementada no Agente 3.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -70,6 +95,12 @@ class EmailReplyView(APIView):
 
 
 class EmailArchiveView(APIView):
+    """POST /api/v1/emails/:id/archive/ — arquiva o e-mail (soft delete).
+
+    Seta `is_archived=True` usando `update_fields` para evitar race condition
+    com o pipeline de classificação que pode estar atualizando `status` em paralelo.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -88,6 +119,12 @@ class EmailArchiveView(APIView):
 
 
 class EmailSnoozeView(APIView):
+    """POST /api/v1/emails/:id/snooze/ — define data/hora de reativação do e-mail.
+
+    O e-mail reaparece na inbox quando `snoozed_until` passa. A filtragem de
+    snooze é responsabilidade do EmailFilter (`snoozed_until__lte=now`).
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -107,6 +144,12 @@ class EmailSnoozeView(APIView):
 
 
 class EmailClassificationUpdateView(generics.UpdateAPIView):
+    """PATCH /api/v1/emails/:id/classify/ — corrige a classificação da IA.
+
+    Preserva os valores originais na primeira correção (feedback loop).
+    Cria um ActionLog.CORRECTED para rastreamento de divergências IA vs. humano.
+    """
+
     serializer_class = EmailClassificationUpdateSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ["patch"]
@@ -129,6 +172,13 @@ class EmailClassificationUpdateView(generics.UpdateAPIView):
 
 
 class EmailBulkActionView(APIView):
+    """POST /api/v1/emails/bulk/ — aplica uma ação a múltiplos e-mails.
+
+    Usa `bulk_create` para os ActionLogs e um único `queryset.update()` para
+    evitar N writes na tabela de emails. Rejeita ações inválidas antes de
+    tocar o banco.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -149,12 +199,16 @@ class EmailBulkActionView(APIView):
 
 
 class DashboardOverviewView(APIView):
+    """GET /api/v1/dashboard/overview/ — métricas principais em uma única query.
+
+    Usa `Count(..., filter=Q(...))` para calcular total, urgentes, pendentes e
+    classificados em uma única `SELECT ... FROM emails` — sem sub-queries.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         qs = Email.objects.filter(user=request.user)
-        # Single aggregation query instead of 4 separate counts
-        from django.db.models import Count, Q
         result = qs.aggregate(
             total=Count("id"),
             urgent=Count("id", filter=Q(classification__priority__in=["critical", "high"])),
@@ -165,6 +219,8 @@ class DashboardOverviewView(APIView):
 
 
 class DashboardByCategoryView(APIView):
+    """GET /api/v1/dashboard/by-category/ — contagem de e-mails agrupada por categoria."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -178,6 +234,8 @@ class DashboardByCategoryView(APIView):
 
 
 class DashboardByPriorityView(APIView):
+    """GET /api/v1/dashboard/by-priority/ — contagem de e-mails agrupada por prioridade."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -191,6 +249,13 @@ class DashboardByPriorityView(APIView):
 
 
 class DashboardTrendsView(APIView):
+    """GET /api/v1/dashboard/trends/?days=30 — volume diário de e-mails no período.
+
+    Usa `TruncDate` (django.db.models.functions) ao invés de `.extra()` que é
+    deprecated desde Django 4. O parâmetro `days` é limitado a int para evitar
+    DoS via queries longas.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -207,6 +272,8 @@ class DashboardTrendsView(APIView):
 
 
 class DashboardResponseTimeView(APIView):
+    """GET /api/v1/dashboard/response-time/ — tempo médio de processamento da IA em ms."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -218,6 +285,8 @@ class DashboardResponseTimeView(APIView):
 
 
 class DashboardTopSendersView(APIView):
+    """GET /api/v1/dashboard/top-senders/ — top 10 remetentes por volume."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -231,6 +300,12 @@ class DashboardTopSendersView(APIView):
 
 
 class DemoSeedView(APIView):
+    """POST /api/v1/demo/seed/ — gera 150 e-mails fictícios para o usuário autenticado.
+
+    Disponível apenas com DEBUG=True. Delega ao management command `seed_demo`
+    para reaproveitar a lógica de geração de dados sem duplicação.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -242,6 +317,12 @@ class DemoSeedView(APIView):
 
 
 class DemoResetView(APIView):
+    """POST /api/v1/demo/reset/ — remove todos os e-mails do usuário autenticado.
+
+    Disponível apenas com DEBUG=True. A deleção em cascata garante que
+    EmailClassification e ActionLog também sejam removidos.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):

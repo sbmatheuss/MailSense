@@ -12,6 +12,12 @@ from .serializers import UserProfileSerializer, RegisterSerializer
 
 
 class RegisterView(APIView):
+    """POST /api/v1/accounts/register/ — cria usuário e retorna token de autenticação.
+
+    Cria o UserProfile associado no mesmo request para garantir consistência.
+    Usa `create_user` para hashar a senha corretamente.
+    """
+
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -24,6 +30,12 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    """POST /api/v1/accounts/login/ — autentica e retorna o token DRF.
+
+    Usa `django.contrib.auth.authenticate` para aproveitar o backend de autenticação
+    padrão (suporta customização futura com AUTHENTICATION_BACKENDS).
+    """
+
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -35,6 +47,12 @@ class LoginView(APIView):
 
 
 class ProfileView(APIView):
+    """GET /api/v1/accounts/profile/ — retorna dados do perfil e status Gmail.
+
+    Usa `get_or_create` como safety net para usuários criados antes da lógica
+    de criação automática do profile estar em vigor.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -43,6 +61,13 @@ class ProfileView(APIView):
 
 
 class LogoutView(APIView):
+    """POST /api/v1/accounts/logout/ — revoga o token de autenticação imediatamente.
+
+    Deletar o token (ao invés de usar blacklist) é a forma correta com DRF Token:
+    qualquer request subsequente com o mesmo token retorna 401 automaticamente.
+    Conforme ADR-004: escolhemos DRF Token pela simplicidade de revogação.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -51,6 +76,12 @@ class LogoutView(APIView):
 
 
 class GmailConnectView(APIView):
+    """POST /api/v1/accounts/gmail/connect/ — inicia o fluxo OAuth2 com Google.
+
+    Retorna a URL de autorização que o frontend deve redirecionar o usuário.
+    O `state` é salvo na session para validação no callback (proteção CSRF OAuth).
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -77,6 +108,12 @@ class GmailConnectView(APIView):
 
 
 class GmailCallbackView(APIView):
+    """GET /api/v1/accounts/gmail/callback/ — troca o authorization code pelos tokens OAuth2.
+
+    O `prompt=consent` na GmailConnectView garante que `refresh_token` sempre
+    seja retornado — sem ele o acesso expira em 1h sem possibilidade de refresh.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -112,6 +149,12 @@ class GmailCallbackView(APIView):
 
 
 class GmailDisconnectView(APIView):
+    """POST /api/v1/accounts/gmail/disconnect/ — revoga a integração Gmail.
+
+    Limpa tokens e desabilita sync sem deletar e-mails já sincronizados.
+    Revogar o token no Google OAuth é responsabilidade do usuário via conta Google.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):

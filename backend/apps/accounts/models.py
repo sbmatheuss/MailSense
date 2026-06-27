@@ -3,6 +3,13 @@ from django.contrib.auth.models import User
 
 
 class UserProfile(models.Model):
+    """Extensão do User Django com dados de integração Gmail e preferências.
+
+    Criado automaticamente no registro via signal ou na primeira chamada a
+    `get_or_create`. Os tokens OAuth são armazenados em texto simples (tech debt
+    registrado — usar django-fernet-fields em v2 para encryption at rest).
+    """
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     gmail_access_token = models.TextField(blank=True)
     gmail_refresh_token = models.TextField(blank=True)

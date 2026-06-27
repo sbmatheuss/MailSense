@@ -3,6 +3,14 @@ from django.contrib.auth.models import User
 
 
 class Email(models.Model):
+    """Representa um e-mail sincronizado do Gmail ou gerado pelo modo demo.
+
+    O campo `status` controla o pipeline de classificação:
+    PENDING → PROCESSING → CLASSIFIED | FAILED.
+    Os campos `is_archived` e `snoozed_until` controlam a visibilidade no inbox
+    sem deletar o registro — necessário para auditoria e feedback loop.
+    """
+
     class Status(models.TextChoices):
         PENDING = "pending", "Pendente"
         PROCESSING = "processing", "Processando"
@@ -45,6 +53,13 @@ class Email(models.Model):
 
 
 class EmailClassification(models.Model):
+    """Resultado da classificação do e-mail pela IA (Claude API).
+
+    Relação 1:1 com Email. Os campos `original_*` preservam os valores antes de
+    uma correção manual do usuário (`user_corrected=True`), alimentando o
+    feedback loop para refinamento de prompts.
+    """
+
     class Category(models.TextChoices):
         SUPPORT = "support", "Suporte"
         BILLING = "billing", "Financeiro"
@@ -92,6 +107,12 @@ class EmailClassification(models.Model):
 
 
 class ActionLog(models.Model):
+    """Registro imutável de cada ação realizada sobre um e-mail.
+
+    Serve como trilha de auditoria e histórico de interações. Nunca deletado
+    individualmente — removido em cascata quando o Email pai é deletado.
+    """
+
     class ActionType(models.TextChoices):
         REPLIED = "replied", "Respondido"
         ARCHIVED = "archived", "Arquivado"

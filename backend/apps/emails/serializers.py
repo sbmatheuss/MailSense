@@ -3,7 +3,11 @@ from .models import Email, EmailClassification, ActionLog
 
 
 class EmailClassificationListSerializer(serializers.ModelSerializer):
-    """Lightweight classification for list view — omits heavy fields."""
+    """Classificação resumida para listagem — omite campos pesados (key_topics, suggested_reply).
+
+    Mantém apenas os campos necessários para renderizar badges e indicadores
+    na lista de e-mails. Reduz o payload por item em ~50% vs. o serializer completo.
+    """
 
     class Meta:
         model = EmailClassification
@@ -14,7 +18,11 @@ class EmailClassificationListSerializer(serializers.ModelSerializer):
 
 
 class EmailClassificationDetailSerializer(serializers.ModelSerializer):
-    """Full classification for detail view."""
+    """Classificação completa para visualização de detalhe.
+
+    Inclui todos os campos gerados pela IA, metadados de processamento e
+    estado do feedback loop (user_corrected, original_*).
+    """
 
     class Meta:
         model = EmailClassification
@@ -26,6 +34,12 @@ class EmailClassificationDetailSerializer(serializers.ModelSerializer):
 
 
 class EmailListSerializer(serializers.ModelSerializer):
+    """Serializer de listagem — retorna apenas campos necessários para a inbox list view.
+
+    O campo `classification` usa o serializer resumido (6 campos) para manter
+    o payload pequeno. Para detalhes completos usar `EmailDetailSerializer`.
+    """
+
     classification = EmailClassificationListSerializer(read_only=True)
 
     class Meta:
@@ -38,6 +52,12 @@ class EmailListSerializer(serializers.ModelSerializer):
 
 
 class EmailDetailSerializer(serializers.ModelSerializer):
+    """Serializer de detalhe — retorna todos os campos incluindo body e histórico de ações.
+
+    `actions` retorna os últimos 10 ActionLogs via `get_actions`. Limitado a 10
+    para evitar payloads excessivos em threads muito longas.
+    """
+
     classification = EmailClassificationDetailSerializer(read_only=True)
     actions = serializers.SerializerMethodField()
 
@@ -55,6 +75,13 @@ class EmailDetailSerializer(serializers.ModelSerializer):
 
 
 class EmailClassificationUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para PATCH de classificação pelo usuário (feedback loop).
+
+    Na primeira correção, preserva os valores originais em `original_*` e seta
+    `user_corrected=True`. Correções subsequentes apenas atualizam os valores,
+    pois o snapshot original já está preservado da primeira vez.
+    """
+
     class Meta:
         model = EmailClassification
         fields = ["category", "priority", "sentiment"]
@@ -69,6 +96,8 @@ class EmailClassificationUpdateSerializer(serializers.ModelSerializer):
 
 
 class ActionLogSerializer(serializers.ModelSerializer):
+    """Serializer somente-leitura para o histórico de ações de um e-mail."""
+
     class Meta:
         model = ActionLog
         fields = ["id", "action", "details", "performed_at"]

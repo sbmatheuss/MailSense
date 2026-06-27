@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path("register/", views.RegisterView.as_view(), name="auth-register"),
     path("login/", views.LoginView.as_view(), name="auth-login"),
+    path("logout/", views.LogoutView.as_view(), name="auth-logout"),
     path("profile/", views.ProfileView.as_view(), name="auth-profile"),
     path("gmail/connect/", views.GmailConnectView.as_view(), name="gmail-connect"),
     path("gmail/callback/", views.GmailCallbackView.as_view(), name="gmail-callback"),

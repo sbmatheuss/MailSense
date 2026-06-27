@@ -1,8 +1,10 @@
 from django.conf import settings
-from django.db.models import Count, Avg, F
+from django.db.models import Count, Avg
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status, generics
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -26,7 +28,6 @@ class EmailListView(generics.ListAPIView):
         return (
             Email.objects.filter(user=self.request.user)
             .select_related("classification")
-            .prefetch_related("actions")
         )
 
 
@@ -35,7 +36,11 @@ class EmailDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Email.objects.filter(user=self.request.user).select_related("classification")
+        return (
+            Email.objects.filter(user=self.request.user)
+            .select_related("classification")
+            .prefetch_related("actions")
+        )
 
 
 class EmailSyncView(APIView):
@@ -53,9 +58,14 @@ class EmailReplyView(APIView):
     def post(self, request, pk):
         email = Email.objects.filter(pk=pk, user=request.user).first()
         if not email:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            raise NotFound()
         body = request.data.get("body", "")
-        ActionLog.objects.create(email=email, action=ActionLog.ActionType.REPLIED, details={"body": body[:200]}, performed_by=request.user)
+        ActionLog.objects.create(
+            email=email,
+            action=ActionLog.ActionType.REPLIED,
+            details={"body": body[:200]},
+            performed_by=request.user,
+        )
         return Response({"detail": "Resposta enviada."})
 
 
@@ -65,8 +75,15 @@ class EmailArchiveView(APIView):
     def post(self, request, pk):
         email = Email.objects.filter(pk=pk, user=request.user).first()
         if not email:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        ActionLog.objects.create(email=email, action=ActionLog.ActionType.ARCHIVED, details={}, performed_by=request.user)
+            raise NotFound()
+        email.is_archived = True
+        email.save(update_fields=["is_archived"])
+        ActionLog.objects.create(
+            email=email,
+            action=ActionLog.ActionType.ARCHIVED,
+            details={},
+            performed_by=request.user,
+        )
         return Response({"detail": "E-mail arquivado."})
 
 
@@ -76,9 +93,16 @@ class EmailSnoozeView(APIView):
     def post(self, request, pk):
         email = Email.objects.filter(pk=pk, user=request.user).first()
         if not email:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            raise NotFound()
         until = request.data.get("until")
-        ActionLog.objects.create(email=email, action=ActionLog.ActionType.SNOOZED, details={"until": until}, performed_by=request.user)
+        email.snoozed_until = until
+        email.save(update_fields=["snoozed_until"])
+        ActionLog.objects.create(
+            email=email,
+            action=ActionLog.ActionType.SNOOZED,
+            details={"until": until},
+            performed_by=request.user,
+        )
         return Response({"detail": "E-mail adiado."})
 
 
@@ -88,10 +112,19 @@ class EmailClassificationUpdateView(generics.UpdateAPIView):
     http_method_names = ["patch"]
 
     def get_object(self):
-        email = Email.objects.filter(pk=self.kwargs["pk"], user=self.request.user).select_related("classification").first()
+        email = (
+            Email.objects.filter(pk=self.kwargs["pk"], user=self.request.user)
+            .select_related("classification")
+            .first()
+        )
         if not email or not hasattr(email, "classification"):
-            from rest_framework.exceptions import NotFound
             raise NotFound()
+        ActionLog.objects.create(
+            email=email,
+            action=ActionLog.ActionType.CORRECTED,
+            details=self.request.data,
+            performed_by=self.request.user,
+        )
         return email.classification
 
 
@@ -101,10 +134,18 @@ class EmailBulkActionView(APIView):
     def post(self, request):
         ids = request.data.get("ids", [])
         action = request.data.get("action")
-        emails = Email.objects.filter(pk__in=ids, user=request.user)
-        for email in emails:
-            ActionLog.objects.create(email=email, action=action, details={}, performed_by=request.user)
-        return Response({"detail": f"{emails.count()} e-mails atualizados."})
+        if action not in ActionLog.ActionType.values:
+            return Response({"detail": "Ação inválida."}, status=status.HTTP_400_BAD_REQUEST)
+        emails = list(Email.objects.filter(pk__in=ids, user=request.user))
+        if not emails:
+            return Response({"detail": "Nenhum e-mail encontrado."}, status=status.HTTP_400_BAD_REQUEST)
+        ActionLog.objects.bulk_create([
+            ActionLog(email=email, action=action, details={}, performed_by=request.user)
+            for email in emails
+        ])
+        if action == ActionLog.ActionType.ARCHIVED:
+            Email.objects.filter(pk__in=[e.pk for e in emails]).update(is_archived=True)
+        return Response({"detail": f"{len(emails)} e-mails atualizados."})
 
 
 class DashboardOverviewView(APIView):
@@ -112,16 +153,15 @@ class DashboardOverviewView(APIView):
 
     def get(self, request):
         qs = Email.objects.filter(user=request.user)
-        total = qs.count()
-        urgent = qs.filter(classification__priority__in=["critical", "high"]).count()
-        pending_action = qs.filter(classification__requires_action=True).count()
-        classified = qs.filter(status="classified").count()
-        return Response({
-            "total": total,
-            "urgent": urgent,
-            "pending_action": pending_action,
-            "classified": classified,
-        })
+        # Single aggregation query instead of 4 separate counts
+        from django.db.models import Count, Q
+        result = qs.aggregate(
+            total=Count("id"),
+            urgent=Count("id", filter=Q(classification__priority__in=["critical", "high"])),
+            pending_action=Count("id", filter=Q(classification__requires_action=True)),
+            classified=Count("id", filter=Q(status="classified")),
+        )
+        return Response(result)
 
 
 class DashboardByCategoryView(APIView):
@@ -158,7 +198,7 @@ class DashboardTrendsView(APIView):
         since = timezone.now() - timedelta(days=days)
         data = (
             Email.objects.filter(user=request.user, received_at__gte=since)
-            .extra(select={"day": "DATE(received_at)"})
+            .annotate(day=TruncDate("received_at"))
             .values("day")
             .annotate(count=Count("id"))
             .order_by("day")

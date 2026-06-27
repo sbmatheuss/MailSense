@@ -230,8 +230,8 @@ mailsense/
 |---|---|---|---|
 | ADR-001 | Monorepo vs Poly-repo | Fase 1 | ✅ Aceito |
 | ADR-002 | Docker multi-stage strategy | Fase 1 | ✅ Aceito |
-| ADR-003 | Framework backend: DRF vs Django Ninja vs FastAPI | Fase 2 | Pendente |
-| ADR-004 | Autenticação: JWT vs Session vs Token | Fase 2 | Pendente |
+| ADR-003 | Framework backend: DRF vs Django Ninja vs FastAPI | Fase 2 | ✅ Aceito (DRF) |
+| ADR-004 | Autenticação: JWT vs Session vs DRF Token | Fase 2 | ✅ Aceito (DRF Token) |
 | ADR-005 | Classificação: Batch vs Individual vs Híbrido | Fase 3 | Pendente |
 | ADR-006 | Provider LLM: Claude vs OpenAI vs Multi-provider | Fase 3 | Pendente |
 | ADR-007 | State management: Zustand vs Redux vs React Query only | Fase 4 | Pendente |

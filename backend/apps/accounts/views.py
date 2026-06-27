@@ -42,6 +42,14 @@ class ProfileView(APIView):
         return Response(UserProfileSerializer(profile).data)
 
 
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        Token.objects.filter(user=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class GmailConnectView(APIView):
     permission_classes = [IsAuthenticated]
 

@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { LayoutDashboard, Inbox, Settings, Zap } from "lucide-react";
 import { clsx } from "clsx";
+import { useDashboardOverview } from "@/api/dashboard";
 
 const nav = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -9,6 +10,9 @@ const nav = [
 ];
 
 export default function Sidebar() {
+  const { data: overview } = useDashboardOverview();
+  const urgentCount = overview?.urgent ?? 0;
+
   return (
     <aside className="w-56 flex-shrink-0 bg-surface border-r border-border flex flex-col">
       <div className="p-4 border-b border-border">
@@ -32,7 +36,12 @@ export default function Sidebar() {
             }
           >
             <Icon className="w-4 h-4" />
-            {label}
+            <span className="flex-1">{label}</span>
+            {to === "/inbox" && urgentCount > 0 && (
+              <span className="text-xs font-semibold bg-danger text-white rounded-full px-1.5 min-w-[1.25rem] text-center leading-5">
+                {urgentCount > 99 ? "99+" : urgentCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

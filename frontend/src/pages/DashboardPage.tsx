@@ -1,6 +1,12 @@
-import { useDashboardOverview, useDashboardByCategory, useDashboardByPriority, useDashboardTrends, useTopSenders } from "@/api/dashboard";
 import { Mail, AlertTriangle, Clock, CheckCircle } from "lucide-react";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, ResponsiveContainer } from "recharts";
+import {
+  PieChart, Pie, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip,
+  LineChart, Line,
+  ResponsiveContainer,
+} from "recharts";
+import { useDashboardOverview, useDashboardByCategory, useDashboardByPriority, useDashboardTrends, useTopSenders } from "@/api/dashboard";
+import { DashboardSkeleton } from "@/components/ui/Skeleton";
 
 const CATEGORY_COLORS: Record<string, string> = {
   support: "#6366F1", billing: "#F59E0B", bug: "#EF4444", feature: "#22C55E",
@@ -11,7 +17,14 @@ const PRIORITY_COLORS: Record<string, string> = {
   critical: "#EF4444", high: "#F59E0B", medium: "#6366F1", low: "#22C55E",
 };
 
-function OverviewCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: number | undefined; color: string }) {
+function OverviewCard({
+  icon: Icon, label, value, color,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number | undefined;
+  color: string;
+}) {
   return (
     <div className="card flex items-center gap-4">
       <div className={`p-2 rounded-lg ${color}`}>
@@ -19,18 +32,22 @@ function OverviewCard({ icon: Icon, label, value, color }: { icon: React.Element
       </div>
       <div>
         <p className="text-text-muted text-xs">{label}</p>
-        <p className="text-2xl font-bold text-text-primary">{value ?? "—"}</p>
+        <p className="text-2xl font-bold text-text-primary">
+          {value ?? "—"}
+        </p>
       </div>
     </div>
   );
 }
 
 export default function DashboardPage() {
-  const { data: overview } = useDashboardOverview();
+  const { data: overview, isLoading } = useDashboardOverview();
   const { data: byCategory } = useDashboardByCategory();
   const { data: byPriority } = useDashboardByPriority();
   const { data: trends } = useDashboardTrends(30);
   const { data: topSenders } = useTopSenders();
+
+  if (isLoading) return <DashboardSkeleton />;
 
   return (
     <div className="space-y-6">
@@ -51,7 +68,11 @@ export default function DashboardPage() {
                   <Cell key={entry.category} fill={CATEGORY_COLORS[entry.category] ?? "#6366F1"} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v, n) => [v, n]} />
+              <Tooltip
+                contentStyle={{ background: "#1A1D27", border: "1px solid #2E3348", borderRadius: 8 }}
+                labelStyle={{ color: "#F1F5F9" }}
+                itemStyle={{ color: "#94A3B8" }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -60,9 +81,13 @@ export default function DashboardPage() {
           <h3 className="text-sm font-semibold text-text-primary mb-4">Por Prioridade</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={byPriority ?? []}>
-              <XAxis dataKey="priority" tick={{ fill: "#94A3B8", fontSize: 12 }} />
-              <YAxis tick={{ fill: "#94A3B8", fontSize: 12 }} />
-              <Tooltip />
+              <XAxis dataKey="priority" tick={{ fill: "#94A3B8", fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: "#94A3B8", fontSize: 12 }} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{ background: "#1A1D27", border: "1px solid #2E3348", borderRadius: 8 }}
+                labelStyle={{ color: "#F1F5F9" }}
+                itemStyle={{ color: "#94A3B8" }}
+              />
               <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                 {(byPriority ?? []).map((entry) => (
                   <Cell key={entry.priority} fill={PRIORITY_COLORS[entry.priority] ?? "#6366F1"} />
@@ -77,9 +102,13 @@ export default function DashboardPage() {
         <h3 className="text-sm font-semibold text-text-primary mb-4">Tendência (30 dias)</h3>
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={trends ?? []}>
-            <XAxis dataKey="day" tick={{ fill: "#94A3B8", fontSize: 11 }} />
-            <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} />
-            <Tooltip />
+            <XAxis dataKey="day" tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <Tooltip
+              contentStyle={{ background: "#1A1D27", border: "1px solid #2E3348", borderRadius: 8 }}
+              labelStyle={{ color: "#F1F5F9" }}
+              itemStyle={{ color: "#94A3B8" }}
+            />
             <Line type="monotone" dataKey="count" stroke="#6366F1" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -87,22 +116,26 @@ export default function DashboardPage() {
 
       <div className="card">
         <h3 className="text-sm font-semibold text-text-primary mb-4">Top Remetentes</h3>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-text-muted text-left">
-              <th className="pb-2 font-medium">Remetente</th>
-              <th className="pb-2 font-medium text-right">E-mails</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {(topSenders ?? []).map((s: { from_address: string; from_name: string; count: number }) => (
-              <tr key={s.from_address}>
-                <td className="py-2 text-text-secondary">{s.from_name || s.from_address}</td>
-                <td className="py-2 text-right text-text-primary font-medium">{s.count}</td>
+        {topSenders?.length === 0 ? (
+          <p className="text-sm text-text-muted text-center py-4">Nenhum dado disponível.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-text-muted text-left">
+                <th className="pb-2 font-medium">Remetente</th>
+                <th className="pb-2 font-medium text-right">E-mails</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {(topSenders ?? []).map((s: { from_address: string; from_name: string; count: number }) => (
+                <tr key={s.from_address}>
+                  <td className="py-2 text-text-secondary">{s.from_name || s.from_address}</td>
+                  <td className="py-2 text-right text-text-primary font-medium">{s.count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

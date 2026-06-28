@@ -3,6 +3,10 @@ from decouple import config
 
 DEBUG = False
 
+MIDDLEWARE = ["whitenoise.middleware.WhiteNoiseMiddleware"] + list(MIDDLEWARE)  # noqa: F405
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATIC_ROOT = BASE_DIR / "staticfiles"  # noqa: F405
+
 SECURE_SSL_REDIRECT = config("DJANGO_SECURE_SSL_REDIRECT", default=True, cast=bool)
 SECURE_HSTS_SECONDS = config("DJANGO_SECURE_HSTS_SECONDS", default=31536000, cast=int)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True

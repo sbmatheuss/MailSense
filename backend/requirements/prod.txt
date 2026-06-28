@@ -1,2 +1,4 @@
 -r base.txt
 gunicorn==23.0.0
+daphne==4.1.2
+whitenoise==6.8.2

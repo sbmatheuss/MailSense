@@ -17,10 +17,15 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
   const connect = useCallback(() => {
     if (!token || attemptsRef.current >= MAX_RECONNECT_ATTEMPTS) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(
-      `${protocol}//${window.location.host}/ws/notifications/?token=${token}`
-    );
+    const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
+    let wsBase: string;
+    if (apiUrl) {
+      wsBase = apiUrl.replace(/\/api\/v1\/?$/, "").replace(/^https/, "wss").replace(/^http(?!s)/, "ws");
+    } else {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      wsBase = `${protocol}//${window.location.host}`;
+    }
+    const ws = new WebSocket(`${wsBase}/ws/notifications/?token=${token}`);
     wsRef.current = ws;
 
     ws.onopen = () => {

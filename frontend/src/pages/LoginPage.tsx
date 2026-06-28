@@ -60,7 +60,7 @@ export default function LoginPage() {
           </form>
           <p className="mt-4 text-center text-sm text-text-muted">
             Demo:{" "}
-            <button onClick={() => setForm({ username: "demo", password: "demo123" })} className="text-primary hover:underline">
+            <button onClick={() => setForm({ username: "demo", password: "demo1234" })} className="text-primary hover:underline">
               usar conta demo
             </button>
           </p>
